@@ -37,6 +37,15 @@
     width: 100%; padding: 10px; font-size: 1rem; color: var(--text);
     background: var(--input); border: 1px solid var(--line); border-radius: 8px;
   }
+  .rowlabel { font-size: .9rem; font-weight: 600; margin: 16px 0 6px; }
+  .rowlabel:first-of-type { margin-top: 0; }
+  .rowlabel small { color: var(--muted); font-weight: 400; }
+  .sumbox {
+    padding: 10px; text-align: center; font-size: 1.1rem; font-weight: 700;
+    background: var(--input); border: 1px solid var(--line); border-radius: 8px;
+    font-variant-numeric: tabular-nums;
+  }
+  .sumcell .f { text-align: center; }
   .seg { display: flex; gap: 8px; flex-wrap: wrap; }
   .seg label {
     flex: 1; min-width: 150px; text-align: center; padding: 10px; cursor: pointer;
@@ -76,11 +85,16 @@
 <body>
 <main>
   <h1>⚾ 5T 五拍計算機</h1>
-  <p class="sub">輸入五項能力的「原始 Base + GI」，算出訓練點數怎麼分配最划算。若已使用 BSAT，仍請填原始 Base + GI。</p>
+  <p class="sub">上排填一般能力值，下排填階級上升量，對應的兩格會自動相加，再算出訓練點數怎麼分配最划算。若已使用 BSAT，仍請填校正前的原始數值。</p>
 
   <section class="card">
     <h2>1. 輸入能力值</h2>
-    <div class="stats" id="stats"></div>
+    <div class="rowlabel">一般能力值 <small>（Base）</small></div>
+    <div class="stats" id="statsBase"></div>
+    <div class="rowlabel">階級上升量 <small>（GI）</small></div>
+    <div class="stats" id="statsGi"></div>
+    <div class="rowlabel">合計 <small>（Base + GI，用這組數值計算）</small></div>
+    <div class="stats" id="statsSum"></div>
   </section>
 
   <section class="card">
@@ -195,8 +209,26 @@ function render(title, r) {
 
 // ---- 初始化 ----
 const $ = id => document.getElementById(id);
-$("stats").innerHTML = LABELS.map((l, i) =>
-  `<div><label class="f" for="s${i}">${l}</label><input type="number" id="s${i}" min="1" max="150" value="90" inputmode="numeric"></div>`).join("");
+const numInput = (id, v, min) =>
+  `<input type="number" id="${id}" min="${min}" max="150" value="${v}" inputmode="numeric">`;
+$("statsBase").innerHTML = LABELS.map((l, i) =>
+  `<div><label class="f" for="b${i}">${l}</label>${numInput("b" + i, 90, 1)}</div>`).join("");
+$("statsGi").innerHTML = LABELS.map((l, i) =>
+  `<div><label class="f" for="g${i}">${l}</label>${numInput("g" + i, 0, 0)}</div>`).join("");
+$("statsSum").innerHTML = LABELS.map((l, i) =>
+  `<div class="sumcell"><label class="f">${l}</label><div class="sumbox" id="sum${i}">90</div></div>`).join("");
+
+// 每一格的合計 = 一般能力值 + 階級上升量（限制在 1–150）
+function getStats() {
+  return LABELS.map((_, i) => {
+    const b = parseInt($("b" + i).value), g = parseInt($("g" + i).value) || 0;
+    return isNaN(b) ? NaN : Math.min(150, Math.max(1, b + Math.max(0, g)));
+  });
+}
+function updateSums() {
+  getStats().forEach((v, i) => { $("sum" + i).textContent = isNaN(v) ? "–" : v; });
+}
+document.addEventListener("input", updateSums);
 const opts = LABELS.map((l, i) => `<option value="${i}">${l}</option>`).join("");
 $("bsSub").innerHTML = opts; $("bsAdd").innerHTML = opts;
 $("bsSub").value = 1; $("bsAdd").value = 4;
@@ -206,7 +238,7 @@ $("tiers").insertAdjacentHTML("beforeend", TIERS.map(([lo, hi, b]) =>
 $("useBsat").addEventListener("change", e => $("bsatBox").classList.toggle("on", e.target.checked));
 
 $("calc").addEventListener("click", () => {
-  const stats = LABELS.map((_, i) => Math.min(150, Math.max(1, parseInt($("s" + i).value) || 1)));
+  const stats = getStats().map(v => isNaN(v) ? 1 : v);
   const total = parseInt(document.querySelector("input[name=sup]:checked").value);
   let html = render("📊 計算結果", calculate(stats, total));
 

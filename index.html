@@ -86,8 +86,7 @@
     background: var(--field); border: 1px solid var(--line); border-radius: 6px;
     font-variant-numeric: tabular-nums;
   }
-  input[type=number] { text-align: center; -moz-appearance: textfield; appearance: textfield; }
-  input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type=number] { text-align: center; }
   select { padding: 9px 10px; }
   input:focus-visible, select:focus-visible, summary:focus-visible, button:focus-visible,
   .seg label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -350,9 +349,9 @@ $("rows").innerHTML = LABELS.map((l, i) => {
   const [c, name] = l.split(" ");
   return `<div class="grid row">
     <label class="name" for="b${i}"><b>${c}</b><small>${name}</small></label>
-    <input type="number" id="b${i}" aria-label="${c} Base" min="1" max="${MAXV}" value="90" inputmode="numeric">
+    <input type="number" id="b${i}" aria-label="${c} Base" min="1" max="${MAXV}" value="75" inputmode="numeric">
     <input type="number" id="g${i}" aria-label="${c} GI" min="0" max="${MAXV}" value="0" inputmode="numeric">
-    <span class="n sum" id="sum${i}">90</span>
+    <span class="n sum" id="sum${i}">75</span>
     <span class="n tr" id="tr${i}">–</span>
     <span class="n fin" id="fin${i}">–</span>
   </div>`;
@@ -428,7 +427,7 @@ $("out").addEventListener("click", e => {
 });
 
 $("reset").addEventListener("click", () => {
-  LABELS.forEach((_, i) => { $("b" + i).value = 90; $("g" + i).value = 0; });
+  LABELS.forEach((_, i) => { $("b" + i).value = 75; $("g" + i).value = 0; });
   $("sup57").checked = true;
   $("useBsat").checked = false;
   $("bsSub").value = 1; $("bsAdd").value = 4; $("bsAmt").value = 1;

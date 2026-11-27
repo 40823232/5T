@@ -6,7 +6,7 @@
 <title>5T 五拍計算機</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
-  /* Layout: single centered column. Inputs on top, live result below, reference tables folded away. */
+  /* Layout: one column. A single ability grid (Base, GI, total, training, result per row) so each input sits next to its answer. */
   :root {
     --bg: #f2f4f0;
     --card: #ffffff;
@@ -63,62 +63,84 @@
     margin: 0;
     background: var(--bg);
     color: var(--fg);
-    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif;
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif;
     padding-block: 28px 48px;
     padding-left: max(16px, env(safe-area-inset-left, 0px));
     padding-right: max(16px, env(safe-area-inset-right, 0px));
   }
   main { max-width: 720px; margin: 0 auto; display: grid; gap: 16px; }
   h1 { font-size: 1.75rem; line-height: 1.2; margin: 0; text-wrap: balance; }
-  h2 { font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 12px; font-weight: 600; }
-  .lead { color: var(--muted); margin: 6px 0 0; font-size: .95rem; max-width: 62ch; }
+  h2 { font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0; font-weight: 600; }
+  .lead { color: var(--muted); margin: 6px 0 0; font-size: .92rem; max-width: 62ch; }
 
   .panel { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
-  .stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
-  .f { display: block; font-size: .8rem; color: var(--muted); margin-bottom: 4px; }
-  .f b { color: var(--fg); font-weight: 700; letter-spacing: .04em; }
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+  button.ghost {
+    font: inherit; font-size: .85rem; cursor: pointer; color: var(--muted);
+    background: none; border: 1px solid var(--line); border-radius: 6px; padding: 4px 12px;
+  }
+  button.ghost:hover { color: var(--fg); border-color: var(--muted); }
+
   input[type=number], select {
-    width: 100%; min-width: 0; padding: 10px; font: inherit; color: var(--fg);
+    width: 100%; min-width: 0; padding: 9px 6px; font: inherit; color: var(--fg);
     background: var(--field); border: 1px solid var(--line); border-radius: 6px;
     font-variant-numeric: tabular-nums;
   }
+  input[type=number] { text-align: center; -moz-appearance: textfield; appearance: textfield; }
+  input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  select { padding: 9px 10px; }
   input:focus-visible, select:focus-visible, summary:focus-visible, button:focus-visible,
   .seg label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+  input[type=number]:focus { border-color: var(--accent); }
 
-  .rowlabel { font-size: .9rem; font-weight: 600; margin: 16px 0 6px; }
-  .rowlabel.first { margin-top: 0; }
-  .rowlabel small { color: var(--muted); font-weight: 400; }
-  .sumbox {
-    padding: 10px; text-align: center; font-size: 1.1rem; font-weight: 700;
-    background: var(--field); border: 1px solid var(--line); border-radius: 6px;
-    font-variant-numeric: tabular-nums;
-  }
-  .sumbox.cap { color: var(--d3); border-color: var(--d3); }
-  .sumcell .f { text-align: center; }
+  .f { display: block; font-size: .8rem; color: var(--muted); margin-bottom: 4px; }
 
-  .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .seg label { display: block; text-align: center; padding: 10px; cursor: pointer; border: 1px solid var(--line); border-radius: 6px; background: var(--field); }
+  /* card type */
+  .cardtype { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+  .cardtype .f { margin: 0; }
+  .seg { display: inline-grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg label { padding: 7px 16px; cursor: pointer; text-align: center; background: var(--field); font-size: .92rem; white-space: nowrap; }
   .seg input { position: absolute; opacity: 0; pointer-events: none; }
-  .seg label:has(input:checked) { border-color: var(--accent); background: var(--accent); color: var(--accent-fg); font-weight: 700; }
-  .seg small { display: block; opacity: .8; font-weight: 400; }
+  .seg label:has(input:checked) { background: var(--accent); color: var(--accent-fg); font-weight: 700; }
 
-  .switch { display: flex; align-items: center; gap: 10px; cursor: pointer; }
-  .switch input { width: 20px; height: 20px; accent-color: var(--accent); margin: 0; }
-  .bsat { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
-  .warn { color: var(--d3); font-size: .9rem; margin: 8px 0 0; }
+  /* ability grid */
+  .grid {
+    display: grid; align-items: center; gap: 6px;
+    grid-template-columns: 52px minmax(0, 1fr) minmax(0, 1fr) 40px 46px 52px;
+  }
+  .grid.head { font-size: .76rem; color: var(--muted); padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+  .grid.row { padding: 6px 0; border-bottom: 1px solid var(--line); }
+  .grid .n { text-align: right; font-variant-numeric: tabular-nums; }
+  .head .n { text-align: right; }
+  .head .c { text-align: center; }
+  .name { line-height: 1.15; cursor: pointer; }
+  .name b { display: block; letter-spacing: .04em; }
+  .name small { color: var(--muted); font-size: .72rem; }
+  .sum.cap { color: var(--d3); font-weight: 700; }
+  .tr { color: var(--muted); }
+  .tr.add { color: var(--accent); font-weight: 700; }
+  .fin { font-weight: 700; }
+  .warn { color: var(--d3); font-size: .88rem; margin: 8px 0 0; }
 
-  .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+  /* result summary */
+  #summary { margin-top: 16px; }
+  .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
   .m { background: var(--field); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; }
   .m .k { font-size: .76rem; color: var(--muted); }
   .m .v { font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; }
   .m .v small { font-size: .85rem; font-weight: 400; color: var(--muted); }
   .m.hero .v { color: var(--accent); }
-
   .diff { display: flex; align-items: center; gap: 8px; font-weight: 600; margin-bottom: 6px; }
   .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--c, var(--d0)); flex: none; }
   .bar { height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; }
   .bar > i { display: block; height: 100%; background: var(--c, var(--d0)); transition: width .25s; }
   @media (prefers-reduced-motion: reduce) { .bar > i { transition: none; } }
+
+  /* BSAT */
+  .switch { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+  .switch input { width: 20px; height: 20px; accent-color: var(--accent); margin: 0; }
+  .bsat { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+  .hint { color: var(--muted); font-size: .85rem; margin: 6px 0 0 30px; }
 
   .tbl { overflow-x: auto; margin-top: 14px; }
   table { width: 100%; border-collapse: collapse; font-size: .95rem; }
@@ -126,9 +148,10 @@
   th { color: var(--muted); font-size: .8rem; font-weight: 600; }
   td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
   td.add { color: var(--accent); font-weight: 700; }
+  .panel > h2 + .metrics { margin-top: 12px; }
 
   .sug { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
-  .sug:last-of-type { border-bottom: 0; }
+  .sug:last-child { border-bottom: 0; }
   .sug .t { font-weight: 600; }
   .sug .d { color: var(--muted); font-size: .88rem; font-variant-numeric: tabular-nums; }
   .sug .d b { color: var(--accent); }
@@ -143,9 +166,10 @@
   footer { color: var(--muted); font-size: .8rem; }
 
   @media (max-width: 560px) {
-    .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .bsat { grid-template-columns: 1fr; }
+    .grid { grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr) 34px 40px 44px; gap: 4px; }
+    input[type=number] { padding: 9px 2px; }
   }
 </style>
 
@@ -154,31 +178,37 @@
 <main>
   <header>
     <h1>5T 五拍計算機</h1>
-    <p class="lead">上排填一般能力值，下排填階級上升量，對應的兩格會自動相加，再算出訓練點數怎麼分配最划算。若已使用 BSAT，請填校正前的原始數值。</p>
+    <p class="lead">填入每項能力的 Base 與 GI，右邊會立刻算出要訓練幾點，下方是加成與難度。</p>
   </header>
 
-  <section class="panel" aria-labelledby="h-in">
-    <h2 id="h-in">能力值</h2>
-    <div class="rowlabel first">一般能力值 <small>（Base）</small></div>
-    <div class="stats" id="statsBase"></div>
-    <div class="rowlabel">階級上升量 <small>（GI）</small></div>
-    <div class="stats" id="statsGi"></div>
-    <div class="rowlabel">合計 <small>（Base + GI，用這組數值計算）</small></div>
-    <div class="stats" id="statsSum"></div>
-    <p class="warn" id="capWarn" hidden>橘色的項目合計超過 120，已以 120 計算（加成表最高到 120）。</p>
-  </section>
-
-  <section class="panel" aria-labelledby="h-type">
-    <h2 id="h-type">卡片類型</h2>
-    <div class="seg">
-      <label><input type="radio" name="sup" id="sup57" value="57" checked>一般卡<small>57 點</small></label>
-      <label><input type="radio" name="sup" id="sup87" value="87">Supreme<small>87 點</small></label>
+  <section class="panel" aria-labelledby="h-main">
+    <div class="top">
+      <h2 id="h-main">能力值與訓練</h2>
+      <button type="button" class="ghost" id="reset">重設</button>
     </div>
+
+    <div class="cardtype">
+      <span class="f">卡片類型</span>
+      <div class="seg" role="radiogroup" aria-label="卡片類型">
+        <label><input type="radio" name="sup" id="sup57" value="57" checked>一般卡 57 點</label>
+        <label><input type="radio" name="sup" id="sup87" value="87">Supreme 87 點</label>
+      </div>
+    </div>
+
+    <div class="grid head" aria-hidden="true">
+      <span>能力</span><span class="c">Base</span><span class="c">GI</span>
+      <span class="n">合計</span><span class="n">訓練</span><span class="n">訓練後</span>
+    </div>
+    <div id="rows"></div>
+    <p class="warn" id="capWarn" hidden>橘色的合計超過 120，已以 120 計算（加成表最高到 120）。</p>
+
+    <div id="summary" aria-live="polite"></div>
   </section>
 
   <section class="panel" aria-labelledby="h-adv">
-    <h2 id="h-adv">進階</h2>
+    <div class="top" style="margin-bottom:10px"><h2 id="h-adv">能力值校正</h2></div>
     <label class="switch" for="useBsat"><input type="checkbox" id="useBsat">是否使用能力值校正（BSAT）</label>
+    <p class="hint">不用先打開，下方「BSAT 建議」會自動幫你找最划算的調整。</p>
     <div class="bsat" id="bsatBox" hidden>
       <div><label class="f" for="bsSub">減少</label><select id="bsSub"></select></div>
       <div><label class="f" for="bsAdd">增加</label><select id="bsAdd"></select></div>
@@ -273,13 +303,9 @@ function bestBsat(stats, total, base) {
     .slice(0, 5);
 }
 
-function renderResult(title, r) {
+function renderSummary(r) {
   const [label, color] = diffLabel(r.difficulty);
-  const rows = LABELS.map((l, i) =>
-    `<tr><td>${l}</td><td class="n ${r.train[i] ? "add" : ""}">${r.train[i] ? "+" + r.train[i] : "0"}</td><td class="n">${r.final[i]}</td></tr>`).join("");
   return `
-  <section class="panel">
-    <h2>${title}</h2>
     <div class="metrics">
       <div class="m hero"><div class="k">目標能力值</div><div class="v">${r.target}</div></div>
       <div class="m"><div class="k">Lv8 加成</div><div class="v">+${r.bonus}</div></div>
@@ -287,7 +313,16 @@ function renderResult(title, r) {
       <div class="m"><div class="k">難度</div><div class="v">${r.difficulty.toFixed(1)}<small> / 10</small></div></div>
     </div>
     <div class="diff" style="--c:${color}"><i class="dot"></i>${label}</div>
-    <div class="bar" style="--c:${color}"><i style="width:${r.difficulty * 10}%"></i></div>
+    <div class="bar" style="--c:${color}"><i style="width:${r.difficulty * 10}%"></i></div>`;
+}
+
+function renderResult(title, r) {
+  const rows = LABELS.map((l, i) =>
+    `<tr><td>${l}</td><td class="n ${r.train[i] ? "add" : ""}">${r.train[i] ? "+" + r.train[i] : "0"}</td><td class="n">${r.final[i]}</td></tr>`).join("");
+  return `
+  <section class="panel">
+    <h2>${title}</h2>
+    <div style="margin-top:12px">${renderSummary(r)}</div>
     <div class="tbl"><table>
       <tr><th>能力</th><th class="n">需要訓練</th><th class="n">訓練後數值</th></tr>${rows}
     </table></div>
@@ -297,28 +332,31 @@ function renderResult(title, r) {
 function renderSuggestions(list, base) {
   let body;
   if (!list.length) {
-    body = `<p class="lead" style="margin:0">目前的數值，用 BSAT 調整後沒有更好的方案。</p>`;
+    body = `<p class="lead" style="margin:12px 0 0">目前的數值，用 BSAT 調整後沒有更好的方案。</p>`;
   } else {
-    body = list.map(o => `
+    body = `<div style="margin-top:6px">` + list.map(o => `
       <div class="sug">
         <div class="t">${code(o.s)} −${o.amt}　→　${code(o.a)} +${o.amt}</div>
         <div class="d">加成 +${base.bonus} → <b>+${o.r.bonus}</b>　難度 ${base.difficulty.toFixed(1)} → ${o.r.difficulty.toFixed(1)}</div>
         <button type="button" class="pick" data-s="${o.s}" data-a="${o.a}" data-amt="${o.amt}">套用</button>
-      </div>`).join("");
+      </div>`).join("") + `</div>`;
   }
   return `<section class="panel"><h2>BSAT 建議（前 5 名）</h2>${body}</section>`;
 }
 
 const $ = id => document.getElementById(id);
 
-const numInput = (id, v, min) =>
-  `<input type="number" id="${id}" min="${min}" max="${MAXV}" value="${v}" inputmode="numeric">`;
-$("statsBase").innerHTML = LABELS.map((l, i) =>
-  `<div><label class="f" for="b${i}">${l}</label>${numInput("b" + i, 90, 1)}</div>`).join("");
-$("statsGi").innerHTML = LABELS.map((l, i) =>
-  `<div><label class="f" for="g${i}">${l}</label>${numInput("g" + i, 0, 0)}</div>`).join("");
-$("statsSum").innerHTML = LABELS.map((l, i) =>
-  `<div class="sumcell"><label class="f">${l}</label><div class="sumbox" id="sum${i}">90</div></div>`).join("");
+$("rows").innerHTML = LABELS.map((l, i) => {
+  const [c, name] = l.split(" ");
+  return `<div class="grid row">
+    <label class="name" for="b${i}"><b>${c}</b><small>${name}</small></label>
+    <input type="number" id="b${i}" aria-label="${c} Base" min="1" max="${MAXV}" value="90" inputmode="numeric">
+    <input type="number" id="g${i}" aria-label="${c} GI" min="0" max="${MAXV}" value="0" inputmode="numeric">
+    <span class="n sum" id="sum${i}">90</span>
+    <span class="n tr" id="tr${i}">–</span>
+    <span class="n fin" id="fin${i}">–</span>
+  </div>`;
+}).join("");
 
 const opts = LABELS.map((l, i) => `<option value="${i}">${l}</option>`).join("");
 $("bsSub").innerHTML = opts; $("bsAdd").innerHTML = opts;
@@ -326,7 +364,7 @@ $("bsSub").value = 1; $("bsAdd").value = 4;
 $("tiers").insertAdjacentHTML("beforeend", TIERS.map(([lo, hi, b]) =>
   `<tr><td>${lo === hi ? lo : lo + "–" + hi}</td><td class="n">+${b}</td></tr>`).join(""));
 
-// 每格合計 = Base + GI，限制在 1–120；任一格留空則回傳 null
+// 每格合計 = Base + GI，限制在 1–120；Base 留空則回傳 null
 function readStats() {
   return LABELS.map((_, i) => {
     const b = parseInt($("b" + i).value), g = parseInt($("g" + i).value) || 0;
@@ -346,13 +384,25 @@ function update() {
     if (c && c.capped) anyCap = true;
   });
   $("capWarn").hidden = !anyCap;
-  if (read.some(c => c === null)) return;
+
+  if (read.some(c => c === null)) {
+    LABELS.forEach((_, i) => { $("tr" + i).textContent = "–"; $("fin" + i).textContent = "–"; });
+    return;
+  }
 
   const stats = read.map(c => c.v);
   const total = parseInt(document.querySelector("input[name=sup]:checked").value);
   const base = calculate(stats, total);
-  let html = renderResult("計算結果", base);
 
+  LABELS.forEach((_, i) => {
+    const t = $("tr" + i);
+    t.textContent = base.train[i] ? "+" + base.train[i] : "0";
+    t.classList.toggle("add", base.train[i] > 0);
+    $("fin" + i).textContent = base.final[i];
+  });
+  $("summary").innerHTML = renderSummary(base);
+
+  let html = "";
   const on = $("useBsat").checked;
   $("bsatBox").hidden = !on;
   $("bsWarn").hidden = true;
@@ -375,6 +425,19 @@ $("out").addEventListener("click", e => {
   $("bsAmt").value = btn.dataset.amt;
   update();
   $("bsatBox").scrollIntoView({ behavior: "smooth", block: "center" });
+});
+
+$("reset").addEventListener("click", () => {
+  LABELS.forEach((_, i) => { $("b" + i).value = 90; $("g" + i).value = 0; });
+  $("sup57").checked = true;
+  $("useBsat").checked = false;
+  $("bsSub").value = 1; $("bsAdd").value = 4; $("bsAmt").value = 1;
+  update();
+});
+
+// 點進輸入格時自動全選，直接打字就能覆蓋
+document.addEventListener("focusin", e => {
+  if (e.target.matches && e.target.matches("input[type=number]")) e.target.select();
 });
 
 document.addEventListener("input", update);
